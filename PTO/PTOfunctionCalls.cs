@@ -8,23 +8,40 @@ namespace PTO
     public static partial class PTOfunctionCalls
     {
         [ExcelFunction(Description = "Перевод давления из Паскалей в bar")]
-        public static double BAR([ExcelArgument(Name = "P", Description = "Давление в Паскалях")] double Pa)
+        public static double BAR([ExcelArgument(Name = "P", Description = "Давление, Pa")] double Pa)
         {
             return Pa / 100000;
         }
+        [ExcelFunction(Description = "Перевод давления из bar в Паскали")]
+        public static double ПА([ExcelArgument(Name = "P", Description = "Давление, bar")] double bar)
+        {
+            return bar * 100000;
+        }
 
-        [ExcelFunction(Description = "Возвращает температуру насыщения, °С")]
-        public static double ТНАСЫЩЕНИЯ([ExcelArgument(Name = "Pизб", Description = "Избыточное давление, bar")] double Pa,
+        [ExcelFunction(Description = "Перевод энергии из Джоулей в Калории")]
+        public static double КАЛ([ExcelArgument(Name = "E", Description = "Энергия, Дж")] double J)
+        {
+            return J / 4.1868;
+        }
+
+        [ExcelFunction(Description = "Перевод энергии из Калорий в Джоули")]
+        public static double ДЖ([ExcelArgument(Name = "E", Description = "Энергия, кал")] double K)
+        {
+            return K * 4.1868;
+        }
+
+        [ExcelFunction(Description = "Возвращает температуру насыщения ts, °С")]
+        public static double ТНАСЫЩЕНИЯ([ExcelArgument(Name = "Pизб", Description = "Избыточное давление, bar")] double Pi,
                                         [ExcelArgument(Name = "Pатм", Description = "Атмосферное давление, bar\nЕсли не указано применяется 1,01325 bar")] double Patm)
         {
-            double Press;
+            double Press = CountAbsPress(Pi, Patm);
 
-            if (Patm == 0)
-                Press = Pa + 1.01325;
-            else
-                Press = Pa + Patm;
-            if (Press < 0)
-                throw new ArgumentOutOfRangeException("Абсолютное давление", Press, "Абсолютное давление меньше 0");
+            return TnasCompute(Press);
+        }
+        private static double TnasCompute(double Press)
+        {
+            if (Press >= 221)
+                return 374.12;
 
             KeyValuePair<double, double> out1 = new KeyValuePair<double, double>();
             KeyValuePair<double, double> out2 = new KeyValuePair<double, double>();
@@ -41,42 +58,209 @@ namespace PTO
 
             if (out1.Equals(out2))
                 return out1.Value;
-            return out1.Value + (out2.Value - out1.Value) / (out2.Key - out1.Key) * (Press - out1.Key);
+            return Triac(Press, out1.Key, out2.Key, out1.Value, out2.Value);
+            //return out1.Value + (out2.Value - out1.Value) / (out2.Key - out1.Key) * (Press - out1.Key);
         }
 
-        [ExcelFunction(Description = "Возвращает температуру насыщения, °С")]
+        [ExcelFunction(Description = "Удельная энтальпия кипящей воды 'h, кДж/кг")]
+        public static double ЭНТАЛЬПИЯВ([ExcelArgument(Name = "Pизб", Description = "Избыточное давление, bar")] double Pi,
+                                [ExcelArgument(Name = "Pатм", Description = "Атмосферное давление, bar\nЕсли не указано применяется 1,01325 bar")] double Patm)
+        {
+            double Press = CountAbsPress(Pi, Patm);
+
+            return EntalpyVCompute(Press);
+        }
+        private static double EntalpyVCompute(double Press)
+        {
+            KeyValuePair<double, double> out1 = new KeyValuePair<double, double>();
+            KeyValuePair<double, double> out2 = new KeyValuePair<double, double>();
+
+            try
+            {
+                out2 = EntalpyNasV.First(x => x.Key >= Press);
+                out1 = EntalpyNasV.Last(x => x.Key <= Press);
+            }
+            catch (Exception)
+            {
+                throw new ArgumentOutOfRangeException("Абсолютное давление", Press, "Абсолютное давление больше критического 221,15 бар");
+            }
+
+            if (out1.Equals(out2))
+                return out1.Value;
+            return Triac(Press, out1.Key, out2.Key, out1.Value, out2.Value);
+            //return out1.Value + (out2.Value - out1.Value) / (out2.Key - out1.Key) * (Press - out1.Key);
+        }
+
+        [ExcelFunction(Description = "Удельная энтальпия сухого насыщенного пара ''h, кДж/кг")]
+        public static double ЭНТАЛЬПИЯП([ExcelArgument(Name = "Pизб", Description = "Избыточное давление, bar")] double Pi,
+                        [ExcelArgument(Name = "Pатм", Description = "Атмосферное давление, bar\nЕсли не указано применяется 1,01325 bar")] double Patm)
+        {
+            double Press = CountAbsPress(Pi, Patm);
+
+            return EntalpyPCompute(Press);
+        }
+        private static double EntalpyPCompute(double Press)
+        {
+            if (Press < 0)
+                throw new ArgumentOutOfRangeException("Абсолютное давление", Press, "Абсолютное давление меньше 0");
+
+            KeyValuePair<double, double> out1 = new KeyValuePair<double, double>();
+            KeyValuePair<double, double> out2 = new KeyValuePair<double, double>();
+
+            try
+            {
+                out2 = EntalpyNasP.First(x => x.Key >= Press);
+                out1 = EntalpyNasP.Last(x => x.Key <= Press);
+            }
+            catch (Exception)
+            {
+                throw new ArgumentOutOfRangeException("Абсолютное давление", Press, "Абсолютное давление больше критического 221,15 бар");
+            }
+
+            if (out1.Equals(out2))
+                return out1.Value;
+            return Triac(Press, out1.Key, out2.Key, out1.Value, out2.Value);
+            //return out1.Value + (out2.Value - out1.Value) / (out2.Key - out1.Key) * (Press - out1.Key);
+        }
+
+        private struct Point
+        {
+            public double T;
+            public double P;
+            public double E;
+            public bool par;
+            public int index;
+        };
+
+        [ExcelFunction(Description = "Удельная энтальпия h, кДж/кг")]
         public static double ЭНТАЛЬПИЯ([ExcelArgument(Name = "T", Description = "Температура, °C")] double T,
-                                        [ExcelArgument(Name = "Pизб", Description = "Избыточное давление, bar")] double Pa,
+                                        [ExcelArgument(Name = "Pизб", Description = "Избыточное давление, bar")] double Pi,
                                         [ExcelArgument(Name = "Pатм", Description = "Атмосферное давление, bar\nЕсли не указано применяется 1,01325 bar")] double Patm)
         {
-            double Press;
-
             if (T < 0)
                 throw new ArgumentOutOfRangeException("Температура", T, "Температура меньше 0 °С");
             if (T > 800)
                 throw new ArgumentOutOfRangeException("Температура", T, "Температура больше 800 °С");
-            if (Patm == 0)
-                Press = Pa + 1.01325;
-            else
-                Press = Pa + Patm;
+
+            double Press = CountAbsPress(Pi, Patm);
+
             if (Press < 0)
                 throw new ArgumentOutOfRangeException("Абсолютное давление", Press, "Абсолютное давление меньше 0");
 
-            double Tn = ТНАСЫЩЕНИЯ(Pa, Patm);
+            //Находим температуру насыщения для расчетного давления
+            double Tn = TnasCompute(Press);
 
-            int index = EntalpyPressureList.FindIndex(x => x >= Press) - 1;
-            KeyValuePair<double, List<double>> e2 = Entalpy.First(x => x.Key > T);
-            KeyValuePair<double, List<double>> e1 = Entalpy.First(x => x.Key == e2.Key - 10.0);
+            //Определяем состояние вещества для расчетной точки (вода/пар)
+            bool par = T >= Tn;
+            Point LT, LB, RT, RB;
+            double e1, e2;
 
-            if (e1.Key > Tn && Tn > e2.Key)
+            // вычитываем точки
+            LT = FindPoint(T - 10.0, Press, -1);
+            RT = FindPoint(T - 10.0, Press);
+            if (T != 0.0)
             {
-                // точка насышения
+                LB = FindPoint(T, Press, -1);
+                RB = FindPoint(T, Press);
+            }
+            else
+            {
+                LB = FindPoint(T + 10.0, Press, -1);
+                RB = FindPoint(T + 10.0, Press);
             }
 
-            double ent1 = e1.Value[index] + (e2.Value[index] - e1.Value[index]) / (e2.Key - e1.Key) * (T - e1.Key);
-            double ent2 = e1.Value[index + 1] + (e2.Value[index + 1] - e1.Value[index + 1]) / (e2.Key - e1.Key) * (T - e1.Key);
+            //варианты таблицы
+            // все 4 точки в том же агрегатном состоянии : все супер - считаем
+            if (LT.par == par && LB.par == par && RT.par == par && RB.par == par)
+            {
+                e1 = LT.E + (LB.E - LT.E) / (LB.T - LT.T) * (T - LT.T);
+                e2 = RT.E + (RB.E - RT.E) / (RB.T - RT.T) * (T - RT.T);
+                return e1 + (e2 - e1) / (RT.P - LT.P) * (Press - LT.P);
+            }
 
-            return ent1 + (ent2 - ent1) / (EntalpyPressureList[index + 1] - EntalpyPressureList[index]) * (Press - EntalpyPressureList[index]);
+            // для текущего состояния - пар
+            // левая нижняя пар, остальные вода : левая нижняя из таблицы, левая верхняя точка насыщения, правая верхняя точка насыщения, правая нижняя смещаем вниз
+            // левые пар правые вода : левые из таблицы, правый верх точка насыщения, правая нижняя смещаем вниз
+            // правая верхняя вода, остальные пар: правая верхняя берем точку насыщения
+            // верхние вода, нижние пар : верхние точки насыщения, нижние пар
+            // все 4 вода - невозможно
+            if (par)
+            {
+                if (LT.par == false)
+                {
+                    LT.T = TnasCompute(LT.P);
+                    LT.E = EntalpyPCompute(LT.P);
+                }
+                if (RT.par == false)
+                {
+                    RT.T = TnasCompute(RT.P);
+                    RT.E = EntalpyPCompute(RT.P);
+                }
+                double offset = 10.0;
+                while (RB.par == false)
+                {
+                    RB = FindPoint(T + offset, Press);
+                    offset += 10.0;
+                }
+            }
+            // для текущего состояния - вода
+            // левая нижняя пар, остальные вода : берем левую нижнюю точку насыщения
+            // левые пар правые вода : берем левую нижнюю точку насыщения, левую верхнюю смещаем выше
+            // правая верхняя вода, остальные пар: берем левую нижнюю точку насыщения, левую верхнюю смещаем выше, правую нижнюю берем точку насыщения
+            // верхние вода, нижние пар : верхние из таблицы нижние точки насыщения
+            // все 4 пар - невозможно
+            else
+            {
+                if (LB.par == true)
+                {
+                    LB.T = TnasCompute(LB.P);
+                    LB.E = EntalpyVCompute(LB.P);
+                }
+                if (RB.par == true)
+                {
+                    RB.T = TnasCompute(RB.P);
+                    RB.E = EntalpyVCompute(RB.P);
+                }
+                double offset = 20.0;
+                while (LT.par == true)
+                {
+                    LT = FindPoint(T - offset, Press, -1);
+                    offset -= 10.0;
+                }
+            }
+            e1 = LT.E + (LB.E - LT.E) / (LB.T - LT.T) * (T - LT.T);
+            e2 = RT.E + (RB.E - RT.E) / (RB.T - RT.T) * (T - RT.T);
+            return e1 + (e2 - e1) / (RB.P - LB.P) * (Press - LB.P);
+        }
+
+        private static Point FindPoint(double T, double P, int Indexoffset = 0)
+        {
+            Point o = new Point();
+            KeyValuePair<double, List<double>> point;
+
+            point = Entalpy.First(x => x.Key >= T);
+            o.T = point.Key;
+            o.index = EntalpyPressureList.FindIndex(x => x >= P) + Indexoffset;
+            o.E = point.Value[o.index];
+            o.P = EntalpyPressureList[o.index];
+            o.par = o.T >= ТНАСЫЩЕНИЯ(o.P - 1.01325, 0);
+
+            return o;
+        }
+        private static double Triac(double x, double x1, double x2, double y1, double y2)
+        {
+            return y1 + (y2 - y1) / (x2 - x1) * (x - x1);
+        }
+        private static double CountAbsPress(double Pi, double Patm)
+        {
+            double Press;
+            if (Patm == 0)
+                Press = Pi + 1.01325;
+            else
+                Press = Pi + Patm;
+            if (Press < 0)
+                throw new ArgumentOutOfRangeException("Абсолютное давление", Press, "Абсолютное давление меньше 0");
+            return Press;
         }
     }
 }
