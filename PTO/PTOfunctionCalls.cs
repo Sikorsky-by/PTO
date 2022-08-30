@@ -8,7 +8,7 @@ namespace PTO
     public static partial class PTOfunctionCalls
     {
         [ExcelFunction(Description = "Перевод давления из Паскалей в bar")]
-        public static double BAR([ExcelArgument(Name = "P", Description = "Давление, Pa")] double Pa)
+        public static double BAR([ExcelArgument(Name = "P", Description = "Давление, Па")] double Pa)
         {
             return Pa / 100000;
         }
@@ -122,7 +122,6 @@ namespace PTO
             return Triac(Press, out1.Key, out2.Key, out1.Value, out2.Value);
             //return out1.Value + (out2.Value - out1.Value) / (out2.Key - out1.Key) * (Press - out1.Key);
         }
-
         private struct Point
         {
             public double T;
@@ -131,7 +130,6 @@ namespace PTO
             public bool par;
             public int index;
         };
-
         [ExcelFunction(Description = "Удельная энтальпия h, кДж/кг")]
         public static double ЭНТАЛЬПИЯ([ExcelArgument(Name = "T", Description = "Температура, °C")] double T,
                                         [ExcelArgument(Name = "Pизб", Description = "Избыточное давление, bar")] double Pi,
@@ -171,7 +169,7 @@ namespace PTO
 
             //варианты таблицы
             // все 4 точки в том же агрегатном состоянии : все супер - считаем
-            if (LT.par == par && LB.par == par && RT.par == par && RB.par == par)
+            if ((LT.par == par && LB.par == par && RT.par == par && RB.par == par) || Press >= 221.15)
             {
                 e1 = LT.E + (LB.E - LT.E) / (LB.T - LT.T) * (T - LT.T);
                 e2 = RT.E + (RB.E - RT.E) / (RB.T - RT.T) * (T - RT.T);
@@ -188,13 +186,31 @@ namespace PTO
             {
                 if (LT.par == false)
                 {
-                    LT.T = TnasCompute(LT.P);
-                    LT.E = EntalpyPCompute(LT.P);
+                    if (LT.P < 221.15)
+                    {
+                        LT.T = TnasCompute(LT.P);
+                        LT.E = EntalpyPCompute(LT.P);
+                    }
+                    else
+                    {
+                        LT.P = 221;
+                        LT.T = 374.06;
+                        LT.E = 2147.6;
+                    }
                 }
                 if (RT.par == false)
                 {
-                    RT.T = TnasCompute(RT.P);
-                    RT.E = EntalpyPCompute(RT.P);
+                    if (RT.P < 221.15)
+                    {
+                        RT.T = TnasCompute(RT.P);
+                        RT.E = EntalpyPCompute(RT.P);
+                    }
+                    else
+                    {
+                        RT.P = 221;
+                        RT.T = 374.06;
+                        RT.E = 2147.6;
+                    }
                 }
                 double offset = 10.0;
                 while (RB.par == false)
@@ -213,13 +229,31 @@ namespace PTO
             {
                 if (LB.par == true)
                 {
-                    LB.T = TnasCompute(LB.P);
-                    LB.E = EntalpyVCompute(LB.P);
+                    if (LB.P < 221.15)
+                    {
+                        LB.T = TnasCompute(LB.P);
+                        LB.E = EntalpyVCompute(LB.P);
+                    }
+                    else
+                    {
+                        LB.P = 221;
+                        LB.T = 374.06;
+                        LB.E = 2147.6;
+                    }
                 }
                 if (RB.par == true)
                 {
-                    RB.T = TnasCompute(RB.P);
-                    RB.E = EntalpyVCompute(RB.P);
+                    if (RB.P < 221.15)
+                    {
+                        RB.T = TnasCompute(RB.P);
+                        RB.E = EntalpyVCompute(RB.P);
+                    }
+                    else
+                    {
+                        RB.P = 221;
+                        RB.T = 374.06;
+                        RB.E = 2147.6;
+                    }
                 }
                 double offset = 20.0;
                 while (LT.par == true)
@@ -231,6 +265,14 @@ namespace PTO
             e1 = LT.E + (LB.E - LT.E) / (LB.T - LT.T) * (T - LT.T);
             e2 = RT.E + (RB.E - RT.E) / (RB.T - RT.T) * (T - RT.T);
             return e1 + (e2 - e1) / (RB.P - LB.P) * (Press - LB.P);
+        }
+
+        [ExcelFunction(Description = "Удельная энтальпия h, ккал/кг")]
+        public static double ЭНТАЛЬПИЯПТО([ExcelArgument(Name = "T", Description = "Температура, °C")] double T,
+                                        [ExcelArgument(Name = "Pизб", Description = "Избыточное давление, МПа")] double Pi,
+                                        [ExcelArgument(Name = "Pатм", Description = "Атмосферное давление, МПа\nЕсли не указано применяется 0,101325 МПа")] double Patm)
+        {
+            return КАЛ(ЭНТАЛЬПИЯ(T, BAR(Pi * 1000000), BAR(Patm * 1000000)));
         }
 
         private static Point FindPoint(double T, double P, int Indexoffset = 0)
