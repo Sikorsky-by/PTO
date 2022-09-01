@@ -5,6 +5,20 @@ VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PTO", "PTO\PTO.csproj", "{D2BB6576-CB23-4C3B-AF38-18FD1A068127}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PTOtests", "PTOtests\PTOtests.csproj", "{3361BB6F-A609-4E99-8A9F-4D797D721A98}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Doc", "Doc", "{83C65D05-D668-482F-BB1D-12BC5B0AE4CA}"
+	ProjectSection(SolutionItems) = preProject
+		Doc\Месячная_ведомость_ТГ-3.xlsx = Doc\Месячная_ведомость_ТГ-3.xlsx
+		Doc\Суточная_ведомость_ТГ-3.xlsx = Doc\Суточная_ведомость_ТГ-3.xlsx
+		Doc\Установка надстройки.docx = Doc\Установка надстройки.docx
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решения", "Элементы решения", "{916EE89E-1639-4BD1-A863-55DB46D6D213}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +29,9 @@ Global
 		{D2BB6576-CB23-4C3B-AF38-18FD1A068127}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D2BB6576-CB23-4C3B-AF38-18FD1A068127}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D2BB6576-CB23-4C3B-AF38-18FD1A068127}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3361BB6F-A609-4E99-8A9F-4D797D721A98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3361BB6F-A609-4E99-8A9F-4D797D721A98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3361BB6F-A609-4E99-8A9F-4D797D721A98}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

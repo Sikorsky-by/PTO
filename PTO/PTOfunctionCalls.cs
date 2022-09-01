@@ -40,8 +40,10 @@ namespace PTO
         }
         private static double TnasCompute(double Press)
         {
-            if (Press >= 221)
+            if (Press >= 221.15)
                 return 374.12;
+            if (Press >= 221.0)
+                return Triac(Press, 221.0, 221.15, 374.06, 374.12);
 
             KeyValuePair<double, double> out1 = new KeyValuePair<double, double>();
             KeyValuePair<double, double> out2 = new KeyValuePair<double, double>();
@@ -72,6 +74,9 @@ namespace PTO
         }
         private static double EntalpyVCompute(double Press)
         {
+            if (Press >= 221.0 && Press <= 221.15)
+                return Triac(Press, 221.0, 221.15, 2045.0, 2095.2);
+
             KeyValuePair<double, double> out1 = new KeyValuePair<double, double>();
             KeyValuePair<double, double> out2 = new KeyValuePair<double, double>();
 
@@ -101,8 +106,8 @@ namespace PTO
         }
         private static double EntalpyPCompute(double Press)
         {
-            if (Press < 0)
-                throw new ArgumentOutOfRangeException("Абсолютное давление", Press, "Абсолютное давление меньше 0");
+            if (Press >= 221.0 && Press <= 221.15)
+                return Triac(Press, 221.0, 221.15, 2147.6, 2095.2);
 
             KeyValuePair<double, double> out1 = new KeyValuePair<double, double>();
             KeyValuePair<double, double> out2 = new KeyValuePair<double, double>();
@@ -255,11 +260,11 @@ namespace PTO
                         RB.E = 2147.6;
                     }
                 }
-                double offset = 20.0;
+                double offset = 10.0;
                 while (LT.par == true)
                 {
                     LT = FindPoint(T - offset, Press, -1);
-                    offset -= 10.0;
+                    offset += 10.0;
                 }
             }
             e1 = LT.E + (LB.E - LT.E) / (LB.T - LT.T) * (T - LT.T);
@@ -280,9 +285,20 @@ namespace PTO
             Point o = new Point();
             KeyValuePair<double, List<double>> point;
 
+            if (T < 0.0)
+                T = 0.0;
+            if (P < 0.0)
+                P = 0.0;
+            if (T > 800.0)
+                T = 800.0;
+
             point = Entalpy.First(x => x.Key >= T);
+
+            //point = Entalpy.First(x => x.Key >= T);
             o.T = point.Key;
             o.index = EntalpyPressureList.FindIndex(x => x >= P) + Indexoffset;
+            if (o.index < 0)
+                o.index = 0;
             o.E = point.Value[o.index];
             o.P = EntalpyPressureList[o.index];
             o.par = o.T >= ТНАСЫЩЕНИЯ(o.P - 1.01325, 0);
@@ -291,7 +307,7 @@ namespace PTO
         }
         private static double Triac(double x, double x1, double x2, double y1, double y2)
         {
-            return y1 + (y2 - y1) / (x2 - x1) * (x - x1);
+            return Math.Round(y1 + (y2 - y1) / (x2 - x1) * (x - x1), 3);
         }
         private static double CountAbsPress(double Pi, double Patm)
         {
